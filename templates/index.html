@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Mutation Tester</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #1a1a1a; min-height: 100vh; }
+        header { background: #fff; border-bottom: 1px solid #e5e5e5; padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; }
+        header h1 { font-size: 18px; font-weight: 600; }
+        header p { font-size: 13px; color: #666; }
+        .badge { background: #f0f0f0; color: #555; font-size: 11px; padding: 3px 8px; border-radius: 20px; }
+        .container { max-width: 960px; margin: 2rem auto; padding: 0 1.5rem; }
+        .tabs { display: flex; gap: 4px; margin-bottom: 1.5rem; background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; padding: 4px; flex-wrap: wrap; }
+        .tab { flex: 1; padding: 8px; text-align: center; font-size: 12px; font-weight: 500; border-radius: 7px; cursor: pointer; color: #666; border: none; background: none; transition: all 0.15s; min-width: 70px; }
+        .tab.active { background: #7c6ff7; color: #fff; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h2 { font-size: 14px; font-weight: 600; margin-bottom: 1rem; color: #333; }
+        label { display: block; font-size: 13px; font-weight: 500; color: #444; margin-bottom: 6px; margin-top: 1rem; }
+        label:first-of-type { margin-top: 0; }
+        textarea { width: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; font-size: 14px; font-family: inherit; resize: vertical; transition: border-color 0.2s; background: #fafafa; }
+        textarea:focus { outline: none; border-color: #7c6ff7; background: #fff; }
+        input[type="range"] { width: 100%; margin-bottom: 4px; }
+        input[type="file"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #fafafa; font-size: 14px; margin-bottom: 1rem; }
+        .btn { width: 100%; background: #7c6ff7; color: #fff; border: none; border-radius: 8px; padding: 12px; font-size: 15px; font-weight: 500; cursor: pointer; margin-top: 1.25rem; transition: background 0.2s; }
+        .btn:hover { background: #6558e8; }
+        .btn:disabled { background: #aaa; cursor: not-allowed; }
+        .add-btn { background: #f5f3ff; color: #7c6ff7; border: 1px solid #c4b5fd; border-radius: 8px; padding: 8px 16px; cursor: pointer; font-size: 13px; font-weight: 500; margin-top: 0.5rem; }
+        #results { display: none; }
+        .score-banner { border-radius: 10px; padding: 1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+        .score-banner.robust { background: #ecfdf5; border: 1px solid #6ee7b7; }
+        .score-banner.moderate { background: #fffbeb; border: 1px solid #fcd34d; }
+        .score-banner.fragile { background: #fef2f2; border: 1px solid #fca5a5; }
+        .score-number { font-size: 36px; font-weight: 700; }
+        .score-banner.robust .score-number { color: #059669; }
+        .score-banner.moderate .score-number { color: #d97706; }
+        .score-banner.fragile .score-number { color: #dc2626; }
+        .score-verdict { font-size: 13px; font-weight: 500; margin-top: 2px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { text-align: left; padding: 8px 12px; background: #f9f9f9; border-bottom: 1px solid #eee; font-weight: 600; color: #555; font-size: 12px; }
+        td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; color: #333; }
+        .status-pass { color: #059669; font-weight: 500; }
+        .status-warn { color: #d97706; font-weight: 500; }
+        .status-fail { color: #dc2626; font-weight: 500; }
+        .fix-box { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 1rem 1.25rem; font-size: 14px; line-height: 1.6; color: #166534; }
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error-box { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; padding: 1rem; color: #dc2626; font-size: 13px; margin-bottom: 1rem; display: none; }
+        .history-item { border: 1px solid #e5e5e5; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; cursor: pointer; transition: border-color 0.15s; }
+        .history-item:hover { border-color: #7c6ff7; }
+        .history-item-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+        .history-prompt { font-size: 13px; color: #333; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%; }
+        .history-meta { font-size: 12px; color: #999; }
+        .score-pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+        .score-pill.robust { background: #ecfdf5; color: #059669; }
+        .score-pill.moderate { background: #fffbeb; color: #d97706; }
+        .score-pill.fragile { background: #fef2f2; color: #dc2626; }
+        .batch-prompt-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; margin-bottom: 8px; align-items: start; }
+        .batch-prompt-row textarea { min-height: 60px; }
+        .remove-btn { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 12px; margin-top: 2px; }
+        .empty-state { text-align: center; padding: 3rem; color: #999; font-size: 14px; }
+        .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 1.5rem; }
+        .stat-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 1.25rem; text-align: center; }
+        .stat-value { font-size: 32px; font-weight: 700; color: #7c6ff7; }
+        .stat-label { font-size: 12px; color: #888; margin-top: 4px; }
+        .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+        .chart-box { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 1.25rem; }
+        .chart-box h3 { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 1rem; }
+        .model-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 1rem; }
+        .model-card { border: 1px solid #e5e5e5; border-radius: 10px; padding: 1.25rem; text-align: center; }
+        .model-card-name { font-size: 13px; font-weight: 600; color: #444; margin-bottom: 8px; }
+        .model-card-score { font-size: 32px; font-weight: 700; }
+        .model-card-score.robust { color: #059669; }
+        .model-card-score.moderate { color: #d97706; }
+        .model-card-score.fragile { color: #dc2626; }
+        .model-card-verdict { font-size: 12px; color: #888; margin-top: 4px; }
+        .winner-badge { background: #f5f3ff; color: #7c6ff7; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; margin-top: 6px; display: inline-block; }
+        .iter-row { border: 1px solid #e5e5e5; border-radius: 8px; padding: 0.875rem 1rem; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+        .iter-num { font-size: 12px; font-weight: 600; color: #888; width: 80px; }
+        .iter-prompt { font-size: 13px; color: #333; flex: 1; margin: 0 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .opt-stat { background: #f9f9f9; border-radius: 8px; padding: 1rem; text-align: center; }
+        .opt-stat-val { font-size: 24px; font-weight: 700; }
+        .opt-stat-label { font-size: 12px; color: #888; margin-top: 2px; }
+        .trace-row { border-bottom: 1px solid #f0f0f0; padding: 10px 12px; font-size: 12px; }
+        .trace-row:last-child { border-bottom: none; }
+        .trace-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .module-badge { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 20px; }
+        .module-mutator { background: #f5f3ff; color: #7c6ff7; }
+        .module-judge { background: #fef2f2; color: #dc2626; }
+        .module-runner { background: #ecfdf5; color: #059669; }
+        .module-fixer { background: #fffbeb; color: #d97706; }
+        .module-agent { background: #eff6ff; color: #1d4ed8; }
+        .trace-meta { font-size: 11px; color: #999; }
+        .trace-prompt { font-size: 12px; color: #555; margin-top: 4px; background: #f9f9f9; padding: 6px 8px; border-radius: 6px; }
+        .trace-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 1rem; }
+        .trace-stat { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 1.25rem; text-align: center; }
+        .trace-stat-val { font-size: 20px; font-weight: 700; color: #7c6ff7; }
+        .trace-stat-label { font-size: 11px; color: #888; margin-top: 2px; }
+        .rag-info { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 0.875rem 1rem; font-size: 13px; color: #0369a1; margin-bottom: 1rem; }
+        .agent-info { background: #f5f3ff; border: 1px solid #c4b5fd; border-radius: 8px; padding: 0.875rem 1rem; font-size: 13px; color: #5b21b6; margin-bottom: 1rem; }
+        .agent-step { border: 1px solid #e5e5e5; border-radius: 8px; padding: 1rem; margin-bottom: 8px; }
+        .agent-step-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+        .agent-step-num { font-size: 11px; font-weight: 600; color: #888; }
+        .agent-step-strategy { font-size: 13px; font-weight: 500; color: #333; }
+        .agent-step-prompt { font-size: 12px; color: #666; margin-top: 4px; background: #f9f9f9; padding: 6px 8px; border-radius: 6px; }
+        .agent-step-reasoning { font-size: 12px; color: #dc2626; margin-top: 4px; font-style: italic; }
+        .failure-item { border: 1px solid #fca5a5; border-radius: 8px; padding: 0.875rem 1rem; margin-bottom: 8px; background: #fef2f2; }
+        .failure-strategy { font-size: 12px; font-weight: 600; color: #dc2626; margin-bottom: 4px; }
+        .failure-reason { font-size: 13px; color: #333; }
+        .export-btn { flex: 1; text-align: center; border-radius: 8px; padding: 10px; font-size: 13px; font-weight: 500; text-decoration: none; display: block; }
+        .export-btn-csv { background: #f9f9f9; border: 1px solid #e5e5e5; color: #333; }
+        .export-btn-pdf { background: #7c6ff7; border: 1px solid #7c6ff7; color: #fff; }
+        .history-export-btn { font-size: 11px; padding: 3px 8px; border-radius: 6px; text-decoration: none; border: 1px solid #e5e5e5; color: #666; background: #f9f9f9; margin-left: 4px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div>
+        <h1>🧬 Prompt Mutation Tester</h1>
+        <p>Test how robust your LLM prompts are against adversarial mutations</p>
+    </div>
+    <span class="badge">v0.8.0</span>
+</header>
+
+<div class="container">
+
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('single')">Single test</button>
+        <button class="tab" onclick="switchTab('batch')">Batch test</button>
+        <button class="tab" onclick="switchTab('dashboard')">Dashboard</button>
+        <button class="tab" onclick="switchTab('history')">History</button>
+        <button class="tab" onclick="switchTab('compare')">Model compare</button>
+        <button class="tab" onclick="switchTab('optimize')">Auto optimizer</button>
+        <button class="tab" onclick="switchTab('traces')">LLM traces</button>
+        <button class="tab" onclick="switchTab('rag')">RAG tester</button>
+        <button class="tab" onclick="switchTab('agent')">AI Agent</button>
+    </div>
+
+    <!-- Single Test Tab -->
+    <div class="tab-content active" id="tab-single">
+        <div class="card">
+            <h2>Test your prompt</h2>
+            <label>Your prompt</label>
+            <textarea id="prompt" rows="3" placeholder="e.g. Summarise this text in exactly 3 bullet points."></textarea>
+            <label>Expected behaviour</label>
+            <textarea id="expected" rows="2" placeholder="e.g. Must return exactly 3 bullet points, no intro or conclusion."></textarea>
+            <label>Test input</label>
+            <textarea id="test-input" rows="2" placeholder="e.g. AI is transforming industries. Companies are investing billions in research."></textarea>
+            <button class="btn" id="run-btn" onclick="runTest()">Run mutation test</button>
+        </div>
+        <div class="error-box" id="error-box"></div>
+        <div id="results">
+            <div class="score-banner" id="score-banner">
+                <div>
+                    <div style="font-size:13px; color:#666; margin-bottom:4px;">Robustness score</div>
+                    <div class="score-number" id="score-number">--</div>
+                    <div class="score-verdict" id="score-verdict"></div>
+                </div>
+            </div>
+            <div class="card">
+                <h2>Mutation results</h2>
+                <table>
+                    <thead><tr><th>Strategy</th><th>Pass rate</th><th>Avg score</th><th>Failure type</th><th>Status</th></tr></thead>
+                    <tbody id="results-table"></tbody>
+                </table>
+            </div>
+            <div class="card" id="fix-card" style="display:none;">
+                <h2>💡 Suggested fix</h2>
+                <p style="font-size:13px; color:#666; margin-bottom:0.75rem;">Your prompt has weaknesses. Here's an improved version:</p>
+                <div class="fix-box" id="fix-box"></div>
+            </div>
+            <div class="card" id="export-card" style="display:none;">
+                <h2>Export report</h2>
+                <p style="font-size:13px; color:#666; margin-bottom:1rem;">Download this test run to share with your team.</p>
+                <div style="display:flex; gap:8px;">
+                    <a id="export-csv-btn" href="#" class="export-btn export-btn-csv">📊 Download CSV</a>
+                    <a id="export-pdf-btn" href="#" class="export-btn export-btn-pdf">📄 Download PDF</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Batch Test Tab -->
+    <div class="tab-content" id="tab-batch">
+        <div class="card">
+            <h2>Batch test multiple prompts</h2>
+            <p style="font-size:13px; color:#666; margin-bottom:1rem;">Test multiple prompts at once. All results are saved to history.</p>
+            <div style="font-size:12px; font-weight:600; color:#555; display:grid; grid-template-columns: 1fr 1fr 1fr auto; gap:8px; margin-bottom:6px;">
+                <span>Prompt</span><span>Expected behaviour</span><span>Test input</span><span></span>
+            </div>
+            <div id="batch-rows">
+                <div class="batch-prompt-row">
+                    <textarea placeholder="Your prompt..." rows="2"></textarea>
+                    <textarea placeholder="Expected behaviour..." rows="2"></textarea>
+                    <textarea placeholder="Test input..." rows="2"></textarea>
+                    <button class="remove-btn" onclick="removeRow(this)">✕</button>
+                </div>
+            </div>
+            <button class="add-btn" onclick="addRow()">+ Add another prompt</button>
+            <button class="btn" id="batch-btn" onclick="runBatch()">Run batch test</button>
+        </div>
+        <div id="batch-results" style="display:none;">
+            <div class="card">
+                <h2>Batch results</h2>
+                <table>
+                    <thead><tr><th>Prompt</th><th>Score</th><th>Verdict</th><th>Fixed</th><th>Export</th></tr></thead>
+                    <tbody id="batch-results-table"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Tab -->
+    <div class="tab-content" id="tab-dashboard">
+        <div class="stat-grid">
+            <div class="stat-card"><div class="stat-value" id="stat-total">--</div><div class="stat-label">Total prompts tested</div></div>
+            <div class="stat-card"><div class="stat-value" id="stat-avg">--</div><div class="stat-label">Average score</div></div>
+            <div class="stat-card"><div class="stat-value" style="color:#059669" id="stat-robust">--</div><div class="stat-label">Robust prompts</div></div>
+            <div class="stat-card"><div class="stat-value" style="color:#dc2626" id="stat-fragile">--</div><div class="stat-label">Fragile prompts</div></div>
+        </div>
+        <div class="chart-grid">
+            <div class="chart-box"><h3>Score distribution</h3><canvas id="dist-chart" height="200"></canvas></div>
+            <div class="chart-box"><h3>Score trend over time</h3><canvas id="trend-chart" height="200"></canvas></div>
+        </div>
+        <div class="card"><h2>Weakest mutation strategies</h2><canvas id="strategy-chart" height="120"></canvas></div>
+    </div>
+
+    <!-- History Tab -->
+    <div class="tab-content" id="tab-history">
+        <div class="card">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+                <h2 style="margin:0;">Past test runs</h2>
+                <button class="add-btn" onclick="loadHistory()">↻ Refresh</button>
+            </div>
+            <div id="history-list"><div class="empty-state">Loading history...</div></div>
+        </div>
+    </div>
+
+    <!-- Model Compare Tab -->
+    <div class="tab-content" id="tab-compare">
+        <div class="card">
+            <h2>Compare models</h2>
+            <p style="font-size:13px; color:#666; margin-bottom:1rem;">Test the same prompt across different Groq models and compare robustness scores side by side.</p>
+            <label>Your prompt</label>
+            <textarea id="compare-prompt" rows="3" placeholder="e.g. Summarise this text in exactly 3 bullet points."></textarea>
+            <label>Expected behaviour</label>
+            <textarea id="compare-expected" rows="2" placeholder="e.g. Must return exactly 3 bullet points, no intro or conclusion."></textarea>
+            <label>Test input</label>
+            <textarea id="compare-input" rows="2" placeholder="e.g. AI is transforming industries."></textarea>
+            <label>Select models to compare</label>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; margin-top:6px;">
+                <label style="margin:0; display:flex; align-items:center; gap:6px; font-weight:400;"><input type="checkbox" value="llama-3.3-70b-versatile" checked> Llama 3.3 70B</label>
+                <label style="margin:0; display:flex; align-items:center; gap:6px; font-weight:400;"><input type="checkbox" value="llama-3.1-8b-instant"> Llama 3.1 8B</label>
+                <label style="margin:0; display:flex; align-items:center; gap:6px; font-weight:400;"><input type="checkbox" value="gemma2-9b-it"> Gemma 2 9B</label>
+            </div>
+            <button class="btn" id="compare-btn" onclick="runCompare()">Run model comparison</button>
+        </div>
+        <div id="compare-results" style="display:none;">
+            <div class="card"><h2>Model comparison results</h2><div class="model-cards" id="model-cards"></div></div>
+            <div class="card"><h2>Strategy breakdown by model</h2><canvas id="compare-chart" height="150"></canvas></div>
+        </div>
+    </div>
+
+    <!-- Auto Optimizer Tab -->
+    <div class="tab-content" id="tab-optimize">
+        <div class="card">
+            <h2>Auto optimizer</h2>
+            <p style="font-size:13px; color:#666; margin-bottom:1rem;">Automatically fixes your prompt repeatedly until it scores above your target.</p>
+            <label>Your prompt</label>
+            <textarea id="opt-prompt" rows="3" placeholder="e.g. Summarise this text in exactly 3 bullet points."></textarea>
+            <label>Expected behaviour</label>
+            <textarea id="opt-expected" rows="2" placeholder="e.g. Must return exactly 3 bullet points, no intro or conclusion."></textarea>
+            <label>Test input</label>
+            <textarea id="opt-input" rows="2" placeholder="e.g. AI is transforming industries."></textarea>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:1rem;">
+                <div>
+                    <label style="margin-top:0;">Target score</label>
+                    <input type="range" id="opt-target" min="60" max="100" value="90" step="5" oninput="document.getElementById('opt-target-val').textContent=this.value">
+                    <span style="font-size:13px; color:#666;">Target: <strong id="opt-target-val">90</strong>/100</span>
+                </div>
+                <div>
+                    <label style="margin-top:0;">Max iterations</label>
+                    <input type="range" id="opt-iterations" min="1" max="5" value="3" step="1" oninput="document.getElementById('opt-iter-val').textContent=this.value">
+                    <span style="font-size:13px; color:#666;">Max: <strong id="opt-iter-val">3</strong> attempts</span>
+                </div>
+            </div>
+            <button class="btn" id="opt-btn" onclick="runOptimize()">Start auto optimization</button>
+        </div>
+        <div id="opt-results" style="display:none;">
+            <div class="card"><h2>Optimization result</h2><div id="opt-summary-content"></div></div>
+            <div class="card">
+                <h2>Score progression</h2>
+                <canvas id="opt-chart" height="120"></canvas>
+                <div id="opt-history" style="margin-top:1.5rem;"></div>
+            </div>
+            <div class="card"><h2>Best prompt found</h2><div class="fix-box" id="opt-best-prompt"></div></div>
+        </div>
+    </div>
+
+    <!-- LLM Traces Tab -->
+    <div class="tab-content" id="tab-traces">
+        <div class="trace-stats-grid">
+            <div class="trace-stat"><div class="trace-stat-val" id="trace-total">--</div><div class="trace-stat-label">Total API calls</div></div>
+            <div class="trace-stat"><div class="trace-stat-val" id="trace-tokens">--</div><div class="trace-stat-label">Total tokens used</div></div>
+            <div class="trace-stat"><div class="trace-stat-val" id="trace-latency">--</div><div class="trace-stat-label">Avg latency (ms)</div></div>
+            <div class="trace-stat"><div class="trace-stat-val" id="trace-cost">--</div><div class="trace-stat-label">Est. cost (USD)</div></div>
+        </div>
+        <div class="card">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+                <h2 style="margin:0;">LLM call traces</h2>
+                <div style="display:flex; gap:8px;">
+                    <button class="add-btn" onclick="loadTraces()">↻ Refresh</button>
+                    <button class="add-btn" style="color:#dc2626; border-color:#fca5a5;" onclick="clearTraces()">Clear</button>
+                </div>
+            </div>
+            <div id="traces-list"><div class="empty-state">Run a test to see LLM call traces here.</div></div>
+        </div>
+    </div>
+
+    <!-- RAG Tester Tab -->
+    <div class="tab-content" id="tab-rag">
+        <div class="card">
+            <h2>RAG prompt tester</h2>
+            <p style="font-size:13px; color:#666; margin-bottom:1rem;">Upload a document and test how robust your extraction prompt is across all mutations.</p>
+            <div class="rag-info">📄 Your document will be chunked automatically. The prompt will be tested against the first 3 chunks to simulate real RAG retrieval.</div>
+            <label>Upload document (PDF or .txt)</label>
+            <input type="file" id="rag-file" accept=".pdf,.txt">
+            <label>Extraction prompt</label>
+            <textarea id="rag-prompt" rows="3" placeholder="e.g. Extract the key findings from this document in 3 bullet points."></textarea>
+            <label>Expected behaviour</label>
+            <textarea id="rag-expected" rows="2" placeholder="e.g. Must return exactly 3 bullet points with key findings only."></textarea>
+            <button class="btn" id="rag-btn" onclick="runRag()">Run RAG test</button>
+        </div>
+        <div id="rag-results" style="display:none;">
+            <div class="score-banner" id="rag-score-banner">
+                <div>
+                    <div style="font-size:13px; color:#666; margin-bottom:4px;">RAG robustness score</div>
+                    <div class="score-number" id="rag-score-number">--</div>
+                    <div class="score-verdict" id="rag-score-verdict"></div>
+                </div>
+                <div style="text-align:right; font-size:13px; color:#666;" id="rag-chunks-info"></div>
+            </div>
+            <div class="card">
+                <h2>Mutation results</h2>
+                <table>
+                    <thead><tr><th>Strategy</th><th>Pass rate</th><th>Avg score</th><th>Failure type</th><th>Status</th></tr></thead>
+                    <tbody id="rag-results-table"></tbody>
+                </table>
+            </div>
+            <div class="card" id="rag-fix-card" style="display:none;">
+                <h2>💡 Suggested fix</h2>
+                <p style="font-size:13px; color:#666; margin-bottom:0.75rem;">Your RAG prompt has weaknesses. Here's an improved version:</p>
+                <div class="fix-box" id="rag-fix-box"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Agent Tab -->
+    <div class="tab-content" id="tab-agent">
+        <div class="card">
+            <h2>Autonomous mutation agent</h2>
+            <p style="font-size:13px; color:#666; margin-bottom:1rem;">An AI agent intelligently decides which mutations to try next based on what's failing.</p>
+            <div class="agent-info">🤖 The agent reasons about your prompt's weaknesses and adaptively selects the most revealing mutations at each step.</div>
+            <label>Your prompt</label>
+            <textarea id="agent-prompt" rows="3" placeholder="e.g. Summarise this text in exactly 3 bullet points."></textarea>
+            <label>Expected behaviour</label>
+            <textarea id="agent-expected" rows="2" placeholder="e.g. Must return exactly 3 bullet points, no intro or conclusion."></textarea>
+            <label>Test input</label>
+            <textarea id="agent-input" rows="2" placeholder="e.g. AI is transforming industries."></textarea>
+            <div style="margin-top:1rem;">
+                <label style="margin-top:0;">Max steps</label>
+                <input type="range" id="agent-steps" min="3" max="10" value="6" step="1" oninput="document.getElementById('agent-steps-val').textContent=this.value">
+                <span style="font-size:13px; color:#666;">Max steps: <strong id="agent-steps-val">6</strong></span>
+            </div>
+            <button class="btn" id="agent-btn" onclick="runAgent()">Launch autonomous agent</button>
+        </div>
+        <div id="agent-results" style="display:none;">
+            <div class="score-banner" id="agent-score-banner">
+                <div>
+                    <div style="font-size:13px; color:#666; margin-bottom:4px;">Overall robustness score</div>
+                    <div class="score-number" id="agent-score-number">--</div>
+                    <div class="score-verdict" id="agent-score-verdict"></div>
+                </div>
+                <div style="text-align:right; font-size:13px; color:#666;">
+                    <div id="agent-steps-info"></div>
+                    <div id="agent-failures-info"></div>
+                </div>
+            </div>
+            <div class="card">
+                <h2>Agent decision history</h2>
+                <p style="font-size:13px; color:#666; margin-bottom:1rem;">Each step shows what the agent chose to test and why.</p>
+                <div id="agent-history"></div>
+            </div>
+            <div class="card" id="agent-failures-card" style="display:none;">
+                <h2>Weaknesses found</h2>
+                <div id="agent-failures-list"></div>
+            </div>
+            <div class="card" id="agent-fix-card" style="display:none;">
+                <h2>💡 Suggested fix</h2>
+                <p style="font-size:13px; color:#666; margin-bottom:0.75rem;">Based on all failures found by the agent:</p>
+                <div class="fix-box" id="agent-fix-box"></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+let distChart, trendChart, strategyChart, compareChart, optChart
+
+function switchTab(tab) {
+    const tabs = ['single','batch','dashboard','history','compare','optimize','traces','rag','agent']
+    document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', tabs[i] === tab))
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'))
+    document.getElementById('tab-' + tab).classList.add('active')
+    if (tab === 'history') loadHistory()
+    if (tab === 'dashboard') loadDashboard()
+    if (tab === 'traces') loadTraces()
+}
+
+async function runTest() {
+    const prompt = document.getElementById('prompt').value.trim()
+    const expected = document.getElementById('expected').value.trim()
+    const testInput = document.getElementById('test-input').value.trim()
+    if (!prompt || !expected) { showError('Please fill in your prompt and expected behaviour.'); return }
+    const btn = document.getElementById('run-btn')
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Running tests...'
+    document.getElementById('results').style.display = 'none'
+    document.getElementById('error-box').style.display = 'none'
+    try {
+        const res = await fetch('/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, expected, test_input: testInput }) })
+        const data = await res.json()
+        if (data.error) { showError(data.error); return }
+        renderResults(data)
+    } catch (err) { showError('Something went wrong.') }
+    finally { btn.disabled = false; btn.innerHTML = 'Run mutation test' }
+}
+
+function renderResults(data) {
+    const score = data.overall_score
+    const verdict = score >= 80 ? 'ROBUST' : score >= 55 ? 'MODERATE' : 'FRAGILE'
+    const cls = score >= 80 ? 'robust' : score >= 55 ? 'moderate' : 'fragile'
+    const banner = document.getElementById('score-banner')
+    banner.className = 'score-banner ' + cls
+    document.getElementById('score-number').textContent = score + '/100'
+    document.getElementById('score-verdict').textContent = verdict
+    const tbody = document.getElementById('results-table')
+    tbody.innerHTML = ''
+    for (const [strategy, info] of Object.entries(data.strategy_scores)) {
+        const statusClass = info.passed ? 'status-pass' : info.pass_rate >= 50 ? 'status-warn' : 'status-fail'
+        const statusText = info.passed ? '✅ PASS' : info.pass_rate >= 50 ? '⚠️ WARN' : '❌ FAIL'
+        tbody.innerHTML += `<tr><td>${strategy}</td><td>${info.pass_rate}%</td><td>${info.avg_score}/100</td><td>${info.failure_types.length ? info.failure_types.join(', ') : '—'}</td><td class="${statusClass}">${statusText}</td></tr>`
+    }
+    if (data.fixed_prompt) { document.getElementById('fix-card').style.display = 'block'; document.getElementById('fix-box').textContent = data.fixed_prompt }
+    else { document.getElementById('fix-card').style.display = 'none' }
+    if (data.run_id) {
+        document.getElementById('export-card').style.display = 'block'
+        document.getElementById('export-csv-btn').href = `/export/csv/${data.run_id}`
+        document.getElementById('export-pdf-btn').href = `/export/pdf/${data.run_id}`
+    }
+    document.getElementById('results').style.display = 'block'
+}
+
+function showError(msg) { const box = document.getElementById('error-box'); box.textContent = msg; box.style.display = 'block' }
+
+function addRow() {
+    const row = document.createElement('div')
+    row.className = 'batch-prompt-row'
+    row.innerHTML = `<textarea placeholder="Your prompt..." rows="2"></textarea><textarea placeholder="Expected behaviour..." rows="2"></textarea><textarea placeholder="Test input..." rows="2"></textarea><button class="remove-btn" onclick="removeRow(this)">✕</button>`
+    document.getElementById('batch-rows').appendChild(row)
+}
+function removeRow(btn) { const rows = document.querySelectorAll('.batch-prompt-row'); if (rows.length > 1) btn.parentElement.remove() }
+
+async function runBatch() {
+    const rows = document.querySelectorAll('.batch-prompt-row')
+    const prompts = []
+    rows.forEach(row => {
+        const t = row.querySelectorAll('textarea')
+        if (t[0].value.trim()) prompts.push({ prompt: t[0].value.trim(), expected: t[1].value.trim(), test_input: t[2].value.trim() })
+    })
+    if (!prompts.length) return
+    const btn = document.getElementById('batch-btn')
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Running batch tests...'
+    try {
+        const res = await fetch('/batch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompts }) })
+        const data = await res.json()
+        const tbody = document.getElementById('batch-results-table')
+        tbody.innerHTML = ''
+        data.forEach(r => {
+            if (r.error) { tbody.innerHTML += `<tr><td>${r.prompt}</td><td colspan="4" style="color:#dc2626">${r.error}</td></tr>`; return }
+            const score = r.overall_score
+            const verdict = score >= 80 ? 'ROBUST' : score >= 55 ? 'MODERATE' : 'FRAGILE'
+            const cls = score >= 80 ? 'robust' : score >= 55 ? 'moderate' : 'fragile'
+            const exportBtns = r.run_id ? `<a href="/export/csv/${r.run_id}" class="history-export-btn">CSV</a><a href="/export/pdf/${r.run_id}" class="history-export-btn" style="background:#7c6ff7; color:#fff; border-color:#7c6ff7;">PDF</a>` : '—'
+            tbody.innerHTML += `<tr><td>${r.prompt}</td><td><span class="score-pill ${cls}">${score}/100</span></td><td>${verdict}</td><td style="font-size:12px; color:#666">${r.fixed_prompt ? '✅ Fix generated' : '—'}</td><td>${exportBtns}</td></tr>`
+        })
+        document.getElementById('batch-results').style.display = 'block'
+    } catch (err) { alert('Something went wrong.') }
+    finally { btn.disabled = false; btn.innerHTML = 'Run batch test' }
+}
+
+async function loadDashboard() {
+    try {
+        const res = await fetch('/history')
+        const runs = await res.json()
+        if (!runs.length) return
+        document.getElementById('stat-total').textContent = runs.length
+        const avg = (runs.reduce((s, r) => s + r.overall_score, 0) / runs.length).toFixed(1)
+        document.getElementById('stat-avg').textContent = avg
+        document.getElementById('stat-robust').textContent = runs.filter(r => r.overall_score >= 80).length
+        document.getElementById('stat-fragile').textContent = runs.filter(r => r.overall_score < 55).length
+        const robust = runs.filter(r => r.overall_score >= 80).length
+        const moderate = runs.filter(r => r.overall_score >= 55 && r.overall_score < 80).length
+        const fragile = runs.filter(r => r.overall_score < 55).length
+        if (distChart) distChart.destroy()
+        distChart = new Chart(document.getElementById('dist-chart'), {
+            type: 'doughnut',
+            data: { labels: ['Robust', 'Moderate', 'Fragile'], datasets: [{ data: [robust, moderate, fragile], backgroundColor: ['#059669', '#d97706', '#dc2626'], borderWidth: 0 }] },
+            options: { plugins: { legend: { position: 'bottom' } }, cutout: '65%' }
+        })
+        const sorted = [...runs].reverse().slice(-10)
+        if (trendChart) trendChart.destroy()
+        trendChart = new Chart(document.getElementById('trend-chart'), {
+            type: 'line',
+            data: { labels: sorted.map(r => r.created_at.split(' ')[1]), datasets: [{ label: 'Score', data: sorted.map(r => r.overall_score), borderColor: '#7c6ff7', backgroundColor: 'rgba(124,111,247,0.1)', tension: 0.4, fill: true, pointRadius: 4 }] },
+            options: { scales: { y: { min: 0, max: 100 } }, plugins: { legend: { display: false } } }
+        })
+        const strategyCounts = {}
+        runs.forEach(r => {
+            Object.entries(r.strategy_scores).forEach(([strategy, data]) => {
+                if (!strategyCounts[strategy]) strategyCounts[strategy] = { fails: 0, total: 0 }
+                strategyCounts[strategy].total++
+                if (!data.passed) strategyCounts[strategy].fails++
+            })
+        })
+        const strategyLabels = Object.keys(strategyCounts)
+        const failRates = strategyLabels.map(s => Math.round((strategyCounts[s].fails / strategyCounts[s].total) * 100))
+        if (strategyChart) strategyChart.destroy()
+        strategyChart = new Chart(document.getElementById('strategy-chart'), {
+            type: 'bar',
+            data: { labels: strategyLabels, datasets: [{ label: 'Fail rate %', data: failRates, backgroundColor: '#7c6ff7', borderRadius: 6 }] },
+            options: { scales: { y: { min: 0, max: 100 } }, plugins: { legend: { display: false } } }
+        })
+    } catch (err) { console.error(err) }
+}
+
+async function loadHistory() {
+    const list = document.getElementById('history-list')
+    list.innerHTML = '<div class="empty-state">Loading...</div>'
+    try {
+        const res = await fetch('/history')
+        const runs = await res.json()
+        if (!runs.length) { list.innerHTML = '<div class="empty-state">No test runs yet.</div>'; return }
+        list.innerHTML = runs.map(r => {
+            const cls = r.overall_score >= 80 ? 'robust' : r.overall_score >= 55 ? 'moderate' : 'fragile'
+            return `<div class="history-item">
+                <div class="history-item-header">
+                    <div class="history-prompt">${r.prompt}</div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span class="score-pill ${cls}">${r.overall_score}/100</span>
+                        <a href="/export/csv/${r.id}" class="history-export-btn">CSV</a>
+                        <a href="/export/pdf/${r.id}" class="history-export-btn" style="background:#7c6ff7; color:#fff; border-color:#7c6ff7;">PDF</a>
+                    </div>
+                </div>
+                <div class="history-meta">${r.created_at} · ${r.verdict} · ${r.fixed_prompt ? 'Fix available' : 'No fix needed'}</div>
+            </div>`
+        }).join('')
+    } catch (err) { list.innerHTML = '<div class="empty-state">Failed to load history.</div>' }
+}
+
+async function runCompare() {
+    const prompt = document.getElementById('compare-prompt').value.trim()
+    const expected = document.getElementById('compare-expected').value.trim()
+    const testInput = document.getElementById('compare-input').value.trim()
+    const models = [...document.querySelectorAll('#tab-compare input[type=checkbox]:checked')].map(c => c.value)
+    if (!prompt || !expected) { alert('Please fill in prompt and expected behaviour.'); return }
+    if (!models.length) { alert('Please select at least one model.'); return }
+    const btn = document.getElementById('compare-btn')
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Running comparison...'
+    try {
+        const res = await fetch('/compare', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, expected, test_input: testInput, models }) })
+        const data = await res.json()
+        if (data.error) { alert(data.error); return }
+        renderCompare(data)
+    } catch (err) { alert('Something went wrong.') }
+    finally { btn.disabled = false; btn.innerHTML = 'Run model comparison' }
+}
+
+function renderCompare(data) {
+    const bestScore = Math.max(...data.map(r => r.overall_score))
+    document.getElementById('model-cards').innerHTML = data.map(r => {
+        const cls = r.overall_score >= 80 ? 'robust' : r.overall_score >= 55 ? 'moderate' : 'fragile'
+        return `<div class="model-card"><div class="model-card-name">${r.model}</div><div class="model-card-score ${cls}">${r.overall_score}/100</div><div class="model-card-verdict">${r.verdict}</div>${r.overall_score === bestScore ? '<span class="winner-badge">🏆 Best score</span>' : ''}</div>`
+    }).join('')
+    const strategies = Object.keys(data[0].strategy_scores)
+    const datasets = data.map((r, i) => ({ label: r.model, data: strategies.map(s => r.strategy_scores[s].avg_score), backgroundColor: ['#7c6ff7', '#059669', '#d97706'][i], borderRadius: 4 }))
+    if (compareChart) compareChart.destroy()
+    compareChart = new Chart(document.getElementById('compare-chart'), {
+        type: 'bar',
+        data: { labels: strategies, datasets },
+        options: { scales: { y: { min: 0, max: 100 } }, plugins: { legend: { position: 'bottom' } } }
+    })
+    document.getElementById('compare-results').style.display = 'block'
+}
+
+async function runOptimize() {
+    const prompt = document.getElementById('opt-prompt').value.trim()
+    const expected = document.getElementById('opt-expected').value.trim()
+    const testInput = document.getElementById('opt-input').value.trim()
+    const targetScore = parseInt(document.getElementById('opt-target').value)
+    const maxIterations = parseInt(document.getElementById('opt-iterations').value)
+    if (!prompt || !expected) { alert('Please fill in prompt and expected behaviour.'); return }
+    const btn = document.getElementById('opt-btn')
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Optimizing...'
+    document.getElementById('opt-results').style.display = 'none'
+    try {
+        const res = await fetch('/optimize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, expected, test_input: testInput, target_score: targetScore, max_iterations: maxIterations }) })
+        const data = await res.json()
+        if (data.error) { alert(data.error); return }
+        renderOptimize(data)
+    } catch (err) { alert('Something went wrong.') }
+    finally { btn.disabled = false; btn.innerHTML = 'Start auto optimization' }
+}
+
+function renderOptimize(data) {
+    const reached = data.target_reached
+    const summaryColor = reached ? '#059669' : '#d97706'
+    document.getElementById('opt-summary-content').innerHTML = `
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:1rem;">
+            <div class="opt-stat"><div class="opt-stat-val" style="color:#7c6ff7">${data.best_score}/100</div><div class="opt-stat-label">Best score achieved</div></div>
+            <div class="opt-stat"><div class="opt-stat-val" style="color:#333">${data.iterations_taken}</div><div class="opt-stat-label">Iterations taken</div></div>
+            <div class="opt-stat"><div class="opt-stat-val" style="color:${summaryColor}">${reached ? '🎯' : '⚠️'}</div><div class="opt-stat-label">${reached ? 'Target reached!' : 'Target not reached'}</div></div>
+        </div>
+        <p style="font-size:13px; color:#666;">Original: <strong>${data.history[0].score}/100</strong> → Best: <strong style="color:${summaryColor}">${data.best_score}/100</strong> (+${(data.best_score - data.history[0].score).toFixed(1)} points)</p>`
+    const labels = data.history.map(h => `Iteration ${h.iteration}`)
+    const scores = data.history.map(h => h.score)
+    if (optChart) optChart.destroy()
+    optChart = new Chart(document.getElementById('opt-chart'), {
+        type: 'line',
+        data: { labels, datasets: [{ label: 'Score', data: scores, borderColor: '#7c6ff7', backgroundColor: 'rgba(124,111,247,0.1)', tension: 0.3, fill: true, pointRadius: 6 }] },
+        options: { scales: { y: { min: 0, max: 100 } }, plugins: { legend: { display: false } } }
+    })
+    document.getElementById('opt-history').innerHTML = data.history.map(h => {
+        const cls = h.score >= 80 ? 'robust' : h.score >= 55 ? 'moderate' : 'fragile'
+        return `<div class="iter-row"><span class="iter-num">Iteration ${h.iteration}</span><span class="iter-prompt">${h.prompt}</span><span class="score-pill ${cls}">${h.score}/100</span></div>`
+    }).join('')
+    document.getElementById('opt-best-prompt').textContent = data.best_prompt
+    document.getElementById('opt-results').style.display = 'block'
+}
+
+async function loadTraces() {
+    try {
+        const res = await fetch('/traces')
+        const data = await res.json()
+        const stats = data.stats
+        const traces = data.traces
+        document.getElementById('trace-total').textContent = stats.total_calls
+        document.getElementById('trace-tokens').textContent = stats.total_tokens.toLocaleString()
+        document.getElementById('trace-latency').textContent = stats.avg_latency_ms + 'ms'
+        document.getElementById('trace-cost').textContent = '$' + stats.total_cost
+        const list = document.getElementById('traces-list')
+        if (!traces.length) { list.innerHTML = '<div class="empty-state">Run a test to see LLM call traces here.</div>'; return }
+        list.innerHTML = traces.map(t => {
+            const moduleClass = `module-${t.module}`
+            return `<div class="trace-row"><div class="trace-header"><span class="module-badge ${moduleClass}">${t.module}</span><span class="trace-meta">${t.timestamp} · ${t.model} · ${t.latency_ms}ms · ${t.total_tokens} tokens</span></div><div class="trace-prompt">${t.prompt_preview}</div></div>`
+        }).join('')
+    } catch (err) { console.error(err) }
+}
+
+async function clearTraces() {
+    await fetch('/traces/clear', { method: 'POST' })
+    loadTraces()
+}
+
+async function runRag() {
+    const file = document.getElementById('rag-file').files[0]
+    const prompt = document.getElementById('rag-prompt').value.trim()
+    const expected = document.getElementById('rag-expected').value.trim()
+    if (!file) { alert('Please upload a document.'); return }
+    if (!prompt || !expected) { alert('Please fill in prompt and expected behaviour.'); return }
+    const btn = document.getElementById('rag-btn')
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Testing RAG prompt...'
+    document.getElementById('rag-results').style.display = 'none'
+    try {
+        const formData = new FormData()
+        formData.append('document', file)
+        formData.append('prompt', prompt)
+        formData.append('expected', expected)
+        const res = await fetch('/rag', { method: 'POST', body: formData })
+        const data = await res.json()
+        if (data.error) { alert(data.error); return }
+        renderRagResults(data)
+    } catch (err) { alert('Something went wrong.') }
+    finally { btn.disabled = false; btn.innerHTML = 'Run RAG test' }
+}
+
+function renderRagResults(data) {
+    const score = data.overall_score
+    const verdict = score >= 80 ? 'ROBUST' : score >= 55 ? 'MODERATE' : 'FRAGILE'
+    const cls = score >= 80 ? 'robust' : score >= 55 ? 'moderate' : 'fragile'
+    const banner = document.getElementById('rag-score-banner')
+    banner.className = 'score-banner ' + cls
+    document.getElementById('rag-score-number').textContent = score + '/100'
+    document.getElementById('rag-score-verdict').textContent = verdict
+    document.getElementById('rag-chunks-info').textContent = `Tested against ${data.chunks_tested} of ${data.total_chunks} chunks`
+    const tbody = document.getElementById('rag-results-table')
+    tbody.innerHTML = ''
+    for (const [strategy, info] of Object.entries(data.strategy_scores)) {
+        const statusClass = info.passed ? 'status-pass' : info.pass_rate >= 50 ? 'status-warn' : 'status-fail'
+        const statusText = info.passed ? '✅ PASS' : info.pass_rate >= 50 ? '⚠️ WARN' : '❌ FAIL'
+        tbody.innerHTML += `<tr><td>${strategy}</td><td>${info.pass_rate}%</td><td>${info.avg_score}/100</td><td>${info.failure_types.length ? info.failure_types.join(', ') : '—'}</td><td class="${statusClass}">${statusText}</td></tr>`
+    }
+    if (data.fixed_prompt) { document.getElementById('rag-fix-card').style.display = 'block'; document.getElementById('rag-fix-box').textContent = data.fixed_prompt }
+    else { document.getElementById('rag-fix-card').style.display = 'none' }
+    document.getElementById('rag-results').style.display = 'block'
+}
+
+async function runAgent() {
+    const prompt = document.getElementById('agent-prompt').value.trim()
+    const expected = document.getElementById('agent-expected').value.trim()
+    const testInput = document.getElementById('agent-input').value.trim()
+    const maxSteps = parseInt(document.getElementById('agent-steps').value)
+    if (!prompt || !expected) { alert('Please fill in prompt and expected behaviour.'); return }
+    const btn = document.getElementById('agent-btn')
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Agent running... this may take a few minutes'
+    document.getElementById('agent-results').style.display = 'none'
+    try {
+        const res = await fetch('/agent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, expected, test_input: testInput, max_steps: maxSteps }) })
+        const data = await res.json()
+        if (data.error) { alert(data.error); return }
+        renderAgentResults(data)
+    } catch (err) { alert('Something went wrong.') }
+    finally { btn.disabled = false; btn.innerHTML = 'Launch autonomous agent' }
+}
+
+function renderAgentResults(data) {
+    const score = data.overall_score
+    const verdict = score >= 80 ? 'ROBUST' : score >= 55 ? 'MODERATE' : 'FRAGILE'
+    const cls = score >= 80 ? 'robust' : score >= 55 ? 'moderate' : 'fragile'
+    const banner = document.getElementById('agent-score-banner')
+    banner.className = 'score-banner ' + cls
+    document.getElementById('agent-score-number').textContent = score + '/100'
+    document.getElementById('agent-score-verdict').textContent = verdict
+    document.getElementById('agent-steps-info').textContent = `${data.steps_taken} steps taken`
+    document.getElementById('agent-failures-info').textContent = `${data.failures_found} weaknesses found`
+    document.getElementById('agent-history').innerHTML = data.history.map(h => {
+        const stepCls = h.passed ? 'status-pass' : 'status-fail'
+        const stepStatus = h.passed ? '✅ PASS' : '❌ FAIL'
+        return `<div class="agent-step">
+            <div class="agent-step-header">
+                <span class="agent-step-num">Step ${h.step}</span>
+                <span class="agent-step-strategy">${h.strategy}</span>
+                <span class="${stepCls}" style="font-size:13px; font-weight:500;">${stepStatus} — ${h.score}/100</span>
+            </div>
+            <div class="agent-step-prompt">${h.mutated_prompt}</div>
+            ${h.reasoning ? `<div class="agent-step-reasoning">${h.reasoning}</div>` : ''}
+        </div>`
+    }).join('')
+    if (data.failures && data.failures.length) {
+        document.getElementById('agent-failures-card').style.display = 'block'
+        document.getElementById('agent-failures-list').innerHTML = data.failures.map(f => `
+            <div class="failure-item">
+                <div class="failure-strategy">${f.strategy} — ${f.failure_type || 'failure'}</div>
+                <div class="failure-reason">${f.reasoning}</div>
+            </div>`).join('')
+    }
+    if (data.fixed_prompt) {
+        document.getElementById('agent-fix-card').style.display = 'block'
+        document.getElementById('agent-fix-box').textContent = data.fixed_prompt
+    }
+    document.getElementById('agent-results').style.display = 'block'
+}
+</script>
+
+</body>
+</html>
