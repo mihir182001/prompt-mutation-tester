@@ -110,6 +110,3 @@ Score after fix: 100/100  ROBUST
 - Custom mutation strategy plugins — let teams write their own strategies
 - On-premise deployment — for enterprise teams with data privacy requirements
 
-## License
-
-MIT
