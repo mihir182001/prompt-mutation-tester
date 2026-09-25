@@ -28,7 +28,7 @@ def run_prompt(prompt: str, test_input: str, model: str = "openai/gpt-oss-120b")
     # Send to Groq and get response
     response = client.chat.completions.create(
         model=model,
-        max_tokens=500,
+        max_tokens=800,
         messages=[{"role": "user", "content": full_message}],
     )
 

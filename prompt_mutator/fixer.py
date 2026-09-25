@@ -63,7 +63,7 @@ The improved prompt should be robust to paraphrasing, tone changes, and ambiguit
     # Send to Groq and get the improved prompt
     response = client.chat.completions.create(
         model="openai/gpt-oss-120b",
-        max_tokens=500,
+        max_tokens=800,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_message}

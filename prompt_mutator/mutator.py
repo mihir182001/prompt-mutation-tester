@@ -68,7 +68,7 @@ Apply each of these mutation strategies and return the results as JSON:
     # Make the API call
     response = client.chat.completions.create(
         model="openai/gpt-oss-120b",
-        max_tokens=500,
+        max_tokens=800,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_message}
