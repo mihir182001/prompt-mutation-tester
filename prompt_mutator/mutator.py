@@ -27,17 +27,6 @@ MUTATION_STRATEGIES = [
 
 
 def generate_llm_mutations(prompt: str, strategies: list[str]) -> dict[str, str]:
-    """
-    Use an LLM to generate semantic mutations of the prompt.
-
-    Args:
-        prompt: The original prompt to mutate
-        strategies: List of strategy names to apply
-
-    Returns:
-        Dict of {strategy_name: mutated_prompt}
-    """
-    # Map each strategy name to a clear instruction for the LLM
     strategy_descriptions = {
         "paraphrase": "Rephrase the prompt using different words but keep the same meaning exactly.",
         "tone_casual": "Rewrite the prompt in a very casual, conversational tone (like texting a friend).",
@@ -50,10 +39,8 @@ def generate_llm_mutations(prompt: str, strategies: list[str]) -> dict[str, str]
         "negation_flip": "Rephrase one instruction using negative framing (e.g. do not X instead of do X).",
     }
 
-    # Filter to only keep strategies the caller asked for
     selected = {k: v for k, v in strategy_descriptions.items() if k in strategies}
 
-    # Tell the LLM to return only JSON
     system_prompt = """You are a prompt mutation engine. Given a prompt and a list of mutation strategies, generate one mutated version per strategy. Return ONLY a valid JSON object. No thinking. No explanation. No markdown. No code blocks. Just the raw JSON object starting with { and ending with }."""
 
     user_message = f"""Original prompt:
@@ -62,27 +49,22 @@ def generate_llm_mutations(prompt: str, strategies: list[str]) -> dict[str, str]
 Apply each of these mutation strategies and return the results as JSON:
 {json.dumps(selected, indent=2)}"""
 
-    # Record start time for latency
     start_time = time.time()
 
-    # Make the API call
     response = client.chat.completions.create(
         model="openai/gpt-oss-120b",
-        max_tokens=800,
+        max_tokens=2000,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_message}
         ],
     )
 
-    # Calculate latency
     latency_ms = (time.time() - start_time) * 1000
 
-    # Extract content safely
     raw = response.choices[0].message.content or ""
     print(f"DEBUG raw response: {repr(raw[:200])}")
 
-    # Log the trace
     log_trace(
         module="mutator",
         prompt=user_message,
@@ -93,89 +75,55 @@ Apply each of these mutation strategies and return the results as JSON:
         model="openai/gpt-oss-120b",
     )
 
-    # Strip markdown code fences if present
     raw = re.sub(r"^```json\s*|^```\s*|```$", "", raw, flags=re.MULTILINE).strip()
 
-    # Find JSON object in response
     json_match = re.search(r'\{.*\}', raw, re.DOTALL)
     if json_match:
         raw = json_match.group()
 
-    # Return original prompt for all strategies if parsing fails
     if not raw:
         return {s: prompt for s in strategies}
 
-    return json.loads(raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return {s: prompt for s in strategies}
 
 
 def generate_rule_based_mutations(prompt: str) -> dict[str, str]:
-    """
-    Generate typo mutations using simple rule-based text manipulation.
-    No API call needed for this one.
-
-    Args:
-        prompt: The original prompt to mutate
-
-    Returns:
-        Dict of {strategy_name: mutated_prompt}
-    """
     mutations = {}
 
-    # Split prompt into individual words
     words = prompt.split()
 
-    # Only apply typo if prompt has more than 3 words
     if len(words) > 3:
-
-        # Pick a random word from the middle of the prompt
         idx = random.randint(1, len(words) - 2)
         word = words[idx]
 
-        # Only mutate words longer than 3 characters
         if len(word) > 3:
-
-            # Pick a random position inside the word and swap two adjacent characters
             i = random.randint(1, len(word) - 2)
             typo_word = word[:i] + word[i+1] + word[i] + word[i+2:]
             words[idx] = typo_word
 
-        # Join words back into a string
         mutations["typo_noise"] = " ".join(words)
 
     return mutations
 
 
 def generate_mutations(prompt: str, strategies: list[str] = None) -> dict[str, str]:
-    """
-    Main function that generates all mutations for a given prompt.
-    Coordinates between LLM-based and rule-based mutations.
-
-    Args:
-        prompt: The original prompt to mutate
-        strategies: List of mutation strategies to apply (defaults to all)
-
-    Returns:
-        Dict of {strategy_name: mutated_prompt}
-    """
-    # Use all strategies if none are specified
     if strategies is None:
         strategies = MUTATION_STRATEGIES
 
-    # Separate strategies into LLM-based and rule-based
     llm_strategies = [s for s in strategies if s != "typo_noise"]
     rule_strategies = [s for s in strategies if s == "typo_noise"]
 
     mutations = {}
 
-    # Run LLM mutations if any are requested
     if llm_strategies:
         mutations.update(generate_llm_mutations(prompt, llm_strategies))
 
-    # Run rule-based mutations if typo_noise is requested
     if rule_strategies:
         mutations.update(generate_rule_based_mutations(prompt))
 
-    # Always include the original prompt as a baseline for comparison
     mutations["original"] = prompt
 
     return mutations
