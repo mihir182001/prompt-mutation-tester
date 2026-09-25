@@ -28,12 +28,12 @@ MUTATION_STRATEGIES = [
 
 def generate_llm_mutations(prompt: str, strategies: list[str]) -> dict[str, str]:
     """
-    Use Claude to generate semantic mutations of the prompt.
-    
+    Use an LLM to generate semantic mutations of the prompt.
+
     Args:
         prompt: The original prompt to mutate
         strategies: List of strategy names to apply
-        
+
     Returns:
         Dict of {strategy_name: mutated_prompt}
     """
@@ -53,9 +53,8 @@ def generate_llm_mutations(prompt: str, strategies: list[str]) -> dict[str, str]
     # Filter to only keep strategies the caller asked for
     selected = {k: v for k, v in strategy_descriptions.items() if k in strategies}
 
-    # Tell the LLM to return only JSON, no extra text or markdown
-    system_prompt = """You are a prompt mutation engine. Given a prompt and a list of mutation strategies,
-generate one mutated version per strategy. Return ONLY a valid JSON object. No thinking. No explanation. No markdown. No code blocks. Just the raw JSON object starting with { and ending with }."""
+    # Tell the LLM to return only JSON
+    system_prompt = """You are a prompt mutation engine. Given a prompt and a list of mutation strategies, generate one mutated version per strategy. Return ONLY a valid JSON object. No thinking. No explanation. No markdown. No code blocks. Just the raw JSON object starting with { and ending with }."""
 
     user_message = f"""Original prompt:
 \"\"\"{prompt}\"\"\"
@@ -79,24 +78,15 @@ Apply each of these mutation strategies and return the results as JSON:
     # Calculate latency
     latency_ms = (time.time() - start_time) * 1000
 
-    content = response.choices[0].message.content
-    if hasattr(response.choices[0].message, 'reasoning_content') and response.choices[0].message.reasoning_content:
-        raw = content.strip()
-    else:
-        raw = content.strip()
-# Find JSON in the response even if there's extra text around it
-    import re
-    json_match = re.search(r'\{.*\}', raw, re.DOTALL)
-    if json_match:
-        raw = json_match.group()
-
-    
+    # Extract content safely
+    raw = response.choices[0].message.content or ""
+    print(f"DEBUG raw response: {repr(raw[:200])}")
 
     # Log the trace
     log_trace(
         module="mutator",
         prompt=user_message,
-        response=raw,
+        response=raw[:200],
         latency_ms=latency_ms,
         input_tokens=response.usage.prompt_tokens,
         output_tokens=response.usage.completion_tokens,
@@ -105,6 +95,16 @@ Apply each of these mutation strategies and return the results as JSON:
 
     # Strip markdown code fences if present
     raw = re.sub(r"^```json\s*|^```\s*|```$", "", raw, flags=re.MULTILINE).strip()
+
+    # Find JSON object in response
+    json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+    if json_match:
+        raw = json_match.group()
+
+    # Return original prompt for all strategies if parsing fails
+    if not raw:
+        return {s: prompt for s in strategies}
+
     return json.loads(raw)
 
 
@@ -112,10 +112,10 @@ def generate_rule_based_mutations(prompt: str) -> dict[str, str]:
     """
     Generate typo mutations using simple rule-based text manipulation.
     No API call needed for this one.
-    
+
     Args:
         prompt: The original prompt to mutate
-        
+
     Returns:
         Dict of {strategy_name: mutated_prompt}
     """
@@ -149,11 +149,11 @@ def generate_mutations(prompt: str, strategies: list[str] = None) -> dict[str, s
     """
     Main function that generates all mutations for a given prompt.
     Coordinates between LLM-based and rule-based mutations.
-    
+
     Args:
         prompt: The original prompt to mutate
         strategies: List of mutation strategies to apply (defaults to all)
-        
+
     Returns:
         Dict of {strategy_name: mutated_prompt}
     """
