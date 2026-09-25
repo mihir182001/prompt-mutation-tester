@@ -3,7 +3,7 @@ import time
 from llm_tracer import log_trace
 
 # Create one shared connection to Groq API
-client = Groq()
+client = Groq(max_retries=0)
 
 
 def run_prompt(prompt: str, test_input: str, model: str = "openai/gpt-oss-120b") -> str:

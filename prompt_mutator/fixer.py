@@ -3,7 +3,7 @@ import json
 import re
 
 # Create one shared connection to Groq API
-client = Groq()
+client = Groq(max_retries=0)
 
 
 def suggest_fix(

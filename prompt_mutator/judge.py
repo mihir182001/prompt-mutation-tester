@@ -4,7 +4,7 @@ import re
 import time
 from llm_tracer import log_trace
 
-client = Groq()
+client = Groq(max_retries=0)
 
 
 def judge_output(

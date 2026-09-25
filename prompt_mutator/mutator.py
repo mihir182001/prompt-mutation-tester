@@ -10,7 +10,7 @@ import random
 import time
 from llm_tracer import log_trace
 
-client = Groq()
+client = Groq(max_retries=0)
 
 MUTATION_STRATEGIES = [
     "paraphrase",

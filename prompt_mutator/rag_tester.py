@@ -5,7 +5,7 @@ import time
 from llm_tracer import log_trace
 
 # Create one shared connection to Groq API
-client = Groq()
+client = Groq(max_retries=0)
 
 
 def extract_text_from_pdf(file_path: str) -> str:

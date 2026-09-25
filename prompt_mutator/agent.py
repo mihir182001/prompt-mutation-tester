@@ -4,7 +4,7 @@ import time
 from llm_tracer import log_trace
 
 # Create one shared connection to Groq API
-client = Groq()
+client = Groq(max_retries=0)
 
 # All available mutation strategies the agent can choose from
 AVAILABLE_STRATEGIES = [

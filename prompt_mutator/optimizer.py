@@ -2,7 +2,7 @@ from groq import Groq
 import json
 
 # Create one shared connection to Groq API
-client = Groq()
+client = Groq(max_retries=0)
 
 
 def iterative_optimize(
