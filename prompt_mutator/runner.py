@@ -6,7 +6,7 @@ from llm_tracer import log_trace
 client = Groq()
 
 
-def run_prompt(prompt: str, test_input: str, model: str = "llama-3.3-70b-versatile") -> str:
+def run_prompt(prompt: str, test_input: str, model: str = "qwen/qwen3.8-27b") -> str:
     """
     Run a single prompt + test input through the LLM and return the output.
     Automatically traces every API call.
@@ -28,7 +28,7 @@ def run_prompt(prompt: str, test_input: str, model: str = "llama-3.3-70b-versati
     # Send to Groq and get response
     response = client.chat.completions.create(
         model=model,
-        max_tokens=1000,
+        max_tokens=500,
         messages=[{"role": "user", "content": full_message}],
     )
 
@@ -55,7 +55,7 @@ def run_prompt(prompt: str, test_input: str, model: str = "llama-3.3-70b-versati
 def run_all_mutations(
     mutations: dict[str, str],
     test_inputs: list[str],
-    model: str = "llama-3.3-70b-versatile",
+    model: str = "qwen/qwen3.8-27b",
 ) -> dict[str, list[dict]]:
     """
     Run all mutated prompts against all test inputs and collect outputs.

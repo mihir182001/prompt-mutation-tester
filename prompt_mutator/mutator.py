@@ -69,8 +69,8 @@ Apply each of these mutation strategies and return the results as JSON:
 
     # Make the API call
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        max_tokens=2000,
+        model="qwen/qwen3.8-27b",
+        max_tokens=500,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_message}
@@ -80,7 +80,18 @@ Apply each of these mutation strategies and return the results as JSON:
     # Calculate latency
     latency_ms = (time.time() - start_time) * 1000
 
-    raw = response.choices[0].message.content.strip()
+    content = response.choices[0].message.content
+    if hasattr(response.choices[0].message, 'reasoning_content') and response.choices[0].message.reasoning_content:
+        raw = content.strip()
+    else:
+        raw = content.strip()
+# Find JSON in the response even if there's extra text around it
+    import re
+    json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+    if json_match:
+        raw = json_match.group()
+
+    
 
     # Log the trace
     log_trace(
@@ -90,7 +101,7 @@ Apply each of these mutation strategies and return the results as JSON:
         latency_ms=latency_ms,
         input_tokens=response.usage.prompt_tokens,
         output_tokens=response.usage.completion_tokens,
-        model="llama-3.3-70b-versatile",
+        model="qwen/qwen3.8-27b",
     )
 
     # Strip markdown code fences if present

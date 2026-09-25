@@ -60,7 +60,7 @@ Did the output satisfy the expected behaviour?"""
 
     # Make the API call to the judge
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="qwen/qwen3.8-27b",
         max_tokens=300,
         messages=[
             {"role": "system", "content": system_prompt},
@@ -73,6 +73,9 @@ Did the output satisfy the expected behaviour?"""
 
     # Extract response
     raw = response.choices[0].message.content.strip()
+    json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+    if json_match:
+        raw = json_match.group()
 
     # Log the trace
     log_trace(
@@ -82,7 +85,7 @@ Did the output satisfy the expected behaviour?"""
         latency_ms=latency_ms,
         input_tokens=response.usage.prompt_tokens,
         output_tokens=response.usage.completion_tokens,
-        model="llama-3.3-70b-versatile",
+        model="qwen/qwen3.8-27b",
     )
 
     # Remove ```json fences if the model adds them

@@ -174,7 +174,7 @@ def compare_models():
     prompt = data.get('prompt', '')
     expected = data.get('expected', '')
     test_input = data.get('test_input', '')
-    models = data.get('models', ['llama-3.3-70b-versatile'])
+    models = data.get('models', ['qwen/qwen3.8-27b'])
 
     if not prompt or not expected:
         return jsonify({'error': 'Prompt and expected behaviour are required'}), 400
