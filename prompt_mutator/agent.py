@@ -79,7 +79,7 @@ Return ONLY the strategy name."""
     start_time = time.time()
 
     response = client.chat.completions.create(
-        model="openai/gpt-oss-20b",
+        model="openai/gpt-oss-120b",
         max_tokens=50,
         messages=[
             {"role": "system", "content": system_prompt},
@@ -98,7 +98,7 @@ Return ONLY the strategy name."""
         latency_ms=latency_ms,
         input_tokens=response.usage.prompt_tokens,
         output_tokens=response.usage.completion_tokens,
-        model="openai/gpt-oss-20b",
+        model="openai/gpt-oss-120b",
     )
 
     # Make sure the response is a valid strategy

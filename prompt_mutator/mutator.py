@@ -68,7 +68,7 @@ Apply each of these mutation strategies and return the results as JSON:
 
     # Make the API call
     response = client.chat.completions.create(
-        model="openai/gpt-oss-20b",
+        model="openai/gpt-oss-120b",
         max_tokens=500,
         messages=[
             {"role": "system", "content": system_prompt},
@@ -100,7 +100,7 @@ Apply each of these mutation strategies and return the results as JSON:
         latency_ms=latency_ms,
         input_tokens=response.usage.prompt_tokens,
         output_tokens=response.usage.completion_tokens,
-        model="openai/gpt-oss-20b",
+        model="openai/gpt-oss-120b",
     )
 
     # Strip markdown code fences if present

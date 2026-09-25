@@ -6,7 +6,7 @@ from llm_tracer import log_trace
 client = Groq()
 
 
-def run_prompt(prompt: str, test_input: str, model: str = "openai/gpt-oss-20b") -> str:
+def run_prompt(prompt: str, test_input: str, model: str = "openai/gpt-oss-120b") -> str:
     """
     Run a single prompt + test input through the LLM and return the output.
     Automatically traces every API call.
@@ -55,7 +55,7 @@ def run_prompt(prompt: str, test_input: str, model: str = "openai/gpt-oss-20b") 
 def run_all_mutations(
     mutations: dict[str, str],
     test_inputs: list[str],
-    model: str = "openai/gpt-oss-20b",
+    model: str = "openai/gpt-oss-120b",
 ) -> dict[str, list[dict]]:
     """
     Run all mutated prompts against all test inputs and collect outputs.
