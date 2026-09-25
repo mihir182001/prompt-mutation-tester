@@ -55,8 +55,7 @@ def generate_llm_mutations(prompt: str, strategies: list[str]) -> dict[str, str]
 
     # Tell the LLM to return only JSON, no extra text or markdown
     system_prompt = """You are a prompt mutation engine. Given a prompt and a list of mutation strategies,
-generate one mutated version per strategy. Return ONLY a JSON object where keys are strategy names
-and values are the mutated prompts. No explanation, no markdown, just raw JSON."""
+generate one mutated version per strategy. Return ONLY a valid JSON object. No thinking. No explanation. No markdown. No code blocks. Just the raw JSON object starting with { and ending with }."""
 
     user_message = f"""Original prompt:
 \"\"\"{prompt}\"\"\"
@@ -69,7 +68,7 @@ Apply each of these mutation strategies and return the results as JSON:
 
     # Make the API call
     response = client.chat.completions.create(
-        model="qwen/qwen3.8-27b",
+        model="openai/gpt-oss-20b",
         max_tokens=500,
         messages=[
             {"role": "system", "content": system_prompt},
@@ -101,7 +100,7 @@ Apply each of these mutation strategies and return the results as JSON:
         latency_ms=latency_ms,
         input_tokens=response.usage.prompt_tokens,
         output_tokens=response.usage.completion_tokens,
-        model="qwen/qwen3.8-27b",
+        model="openai/gpt-oss-20b",
     )
 
     # Strip markdown code fences if present

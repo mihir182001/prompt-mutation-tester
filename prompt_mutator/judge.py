@@ -60,7 +60,7 @@ Did the output satisfy the expected behaviour?"""
 
     # Make the API call to the judge
     response = client.chat.completions.create(
-        model="qwen/qwen3.8-27b",
+        model="openai/gpt-oss-20b",
         max_tokens=300,
         messages=[
             {"role": "system", "content": system_prompt},
@@ -85,7 +85,7 @@ Did the output satisfy the expected behaviour?"""
         latency_ms=latency_ms,
         input_tokens=response.usage.prompt_tokens,
         output_tokens=response.usage.completion_tokens,
-        model="qwen/qwen3.8-27b",
+        model="openai/gpt-oss-20b",
     )
 
     # Remove ```json fences if the model adds them
