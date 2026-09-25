@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import sys
 import os
+from httpx import HTTPStatusError
 
 # Add prompt_mutator folder to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'prompt_mutator'))
@@ -83,6 +84,10 @@ def run_test():
             'fixed_prompt': fixed_prompt,
         })
 
+    except HTTPStatusError as e:
+        if e.response.status_code == 429:
+            return jsonify({'error': 'Groq rate limit reached. Please wait 30 seconds and try again.'}), 429
+        return jsonify({'error': str(e)}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -158,6 +163,14 @@ def batch_test():
                 'fixed_prompt': fixed_prompt,
             })
 
+        except HTTPStatusError as e:
+            if e.response.status_code == 429:
+                batch_results.append({
+                    'prompt': prompt[:60],
+                    'error': 'Groq rate limit reached. Please wait 30 seconds and try again.',
+                })
+            else:
+                batch_results.append({'prompt': prompt[:60], 'error': str(e)})
         except Exception as e:
             batch_results.append({
                 'prompt': prompt[:60],
@@ -208,6 +221,14 @@ def compare_models():
                 'strategy_scores': strategy_scores,
             })
 
+        except HTTPStatusError as e:
+            if e.response.status_code == 429:
+                compare_results.append({
+                    'model': model,
+                    'error': 'Groq rate limit reached. Please wait 30 seconds and try again.',
+                })
+            else:
+                compare_results.append({'model': model, 'error': str(e)})
         except Exception as e:
             compare_results.append({
                 'model': model,
@@ -333,7 +354,7 @@ def run_agent():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    
+
 
 @app.route('/export/csv/<int:run_id>')
 def export_csv(run_id):
